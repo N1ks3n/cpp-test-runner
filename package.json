@@ -2,7 +2,19 @@
   "name": "cpp-test-runner",
   "version": "1.0.0",
   "description": "Расширение для Visual Studio Code, которое запускает тесты CMake/CTest одной кнопкой.",
-  "main": "index.js",
+  "main": "./dist/extension.js",
+  "displayName": "C++ Test Runner",
+  "engines": {
+    "vscode": "^1.96.0"
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "cppTestRunner.runTests",
+        "title": "C++ Test Runner: Run Tests"
+      }
+    ]
+  },
   "scripts": {
     "build": "tsc",
     "start": "node dist/main.js"
