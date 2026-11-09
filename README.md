@@ -1,2 +1,19 @@
-# cpp-test-runner
-VS Code extension for running CMake/CTest tests with customizable reports and statistics
+# C++ Test Runner
+
+Расширение для Visual Studio Code, которое запускает тесты
+CMake/CTest одной кнопкой.
+
+## Планируемые возможности
+
+- Обнаружение и запуск тестов через CTest.
+- Вывод подробностей только для неуспешных тестов.
+- Сообщение об успешном прохождении всех тестов.
+- Сбор истории запусков и визуализация статистики.
+- Настройки через выпадающее меню.
+- Стандартный вывод и пользовательское оформление отчёта.
+
+## Технологии
+
+- TypeScript
+- VS Code Extension API
+- CMake / CTest
