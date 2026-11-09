@@ -36,5 +36,8 @@
     "@types/node": "^26.6.6",
     "@types/vscode": "^1.145.0",
     "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "fast-xml-parser": "^5.12.0"
   }
 }
