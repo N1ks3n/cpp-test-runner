@@ -3,7 +3,6 @@ import { spawn } from "node:child_process";
 import * as path from "node:path";
 import { readFile, rm } from "node:fs/promises";
 import { XMLParser, XMLValidator } from "fast-xml-parser";
-import { SettingsPanel } from "./settingsPanel.js";
 
 function runProcess(
     executable: string,
@@ -135,8 +134,11 @@ export function activate(context: vscode.ExtensionContext): void {
 
     const settingsCommand = vscode.commands.registerCommand(
         "cppTestRunner.openSettings",
-        () => {
-            SettingsPanel.show();
+        async () => {
+            await vscode.commands.executeCommand(
+                "workbench.action.openSettings",
+                "cppTestRunner"
+            );
         }
     );
 
