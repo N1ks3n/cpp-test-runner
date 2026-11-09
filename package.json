@@ -4,7 +4,8 @@
   "description": "Расширение для Visual Studio Code, которое запускает тесты CMake/CTest одной кнопкой.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "tsc",
+    "start": "node dist/main.js"
   },
   "repository": {
     "type": "git",
