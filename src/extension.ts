@@ -1,21 +1,36 @@
 import * as vscode from "vscode";
 import { spawn } from "node:child_process";
 import * as path from "node:path";
+import { readFile, rm } from "node:fs/promises";
+import { XMLParser, XMLValidator } from "fast-xml-parser";
 
 function runProcess(
     executable: string,
     args: string[],
-    output: vscode.OutputChannel
+    output: vscode.OutputChannel,
+    showOutput: boolean = true
 ): Promise<number> {
     return new Promise((resolve, reject) => {
         const child = spawn(executable, args);
 
+        let capturedOutput = "";
+
         child.stdout.on("data", (data: Buffer) => {
-            output.append(data.toString());
+            const text = data.toString();
+            capturedOutput += text;
+
+            if (showOutput) {
+                output.append(text);
+            }
         });
 
         child.stderr.on("data", (data: Buffer) => {
-            output.append(data.toString());
+            const text = data.toString();
+            capturedOutput += text;
+
+            if (showOutput) {
+                output.append(text);
+            }
         });
 
         child.on("error", reject);
@@ -28,9 +43,89 @@ function runProcess(
                 return;
             }
 
+            if (!showOutput && code !== 0 && capturedOutput.length > 0) {
+                output.append(capturedOutput);
+            }
+
             resolve(code ?? 1);
         });
     });
+}
+
+async function showTestReport(
+    reportPath: string,
+    output: vscode.OutputChannel
+): Promise<boolean> {
+    const xml = await readFile(reportPath, "utf8");
+
+    if (XMLValidator.validate(xml) !== true) {
+        throw new Error("CTest создал некорректный XML-отчёт.");
+    }
+
+    const parser = new XMLParser({
+        ignoreAttributes: false,
+        attributeNamePrefix: "",
+        parseTagValue: false,
+        isArray: (name) => name === "testcase"
+    });
+
+    const report = parser.parse(xml);
+    const suite = report.testsuite;
+
+    if (!suite || !Array.isArray(suite.testcase)) {
+        throw new Error("В отчёте CTest отсутствует список тестов.");
+    }
+
+    const tests = suite.testcase;
+
+    if (tests.length === 0) {
+        throw new Error("Тесты не найдены.");
+    }
+
+    let problemCount = 0;
+
+    for (const test of tests) {
+        const failed =
+            test.failure !== undefined ||
+            test.error !== undefined;
+
+        const skipped =
+            test.skipped !== undefined ||
+            test.status === "notrun" ||
+            test.status === "disabled";
+
+        if (!failed && !skipped) {
+            continue;
+        }
+
+        problemCount++;
+
+        output.appendLine(
+            `${skipped ? "Не выполнен" : "Провален"}: ${test.name}`
+        );
+
+        const testOutput = test["system-out"];
+
+        const text = typeof testOutput === "string"
+            ? testOutput
+            : testOutput?.["#text"];
+
+        if (typeof text === "string" && text.trim()) {
+            output.appendLine(text.trim());
+        }
+
+        output.appendLine("");
+    }
+
+    if (problemCount === 0) {
+        output.appendLine(`Все тесты прошли! Всего: ${tests.length}`);
+    } else {
+        output.appendLine(
+            `Всего: ${tests.length}. С проблемами: ${problemCount}.`
+        );
+    }
+
+    return problemCount === 0;
 }
 
 export function activate(context: vscode.ExtensionContext): void {
@@ -154,17 +249,19 @@ export function activate(context: vscode.ExtensionContext): void {
 
             output.clear();
             output.show(true);
-            output.appendLine(`Каталог сборки: ${buildDirectory}`);
 
             isRunning = true;
 
-            try {
-                output.appendLine("Сборка проекта...");
+            const diagnostics = vscode.window.createOutputChannel(
+                "C++ Test Runner Diagnostics"
+            );
 
+            try {
                 const buildCode = await runProcess(
                     "cmake",
                     ["--build", buildDirectory],
-                    output
+                    output,
+                    false
                 );
 
                 if (buildCode !== 0) {
@@ -174,7 +271,12 @@ export function activate(context: vscode.ExtensionContext): void {
                     return;
                 }
 
-                output.appendLine("\nЗапуск тестов...");
+                const reportPath = path.join(
+                    buildDirectory,
+                    "test-results.xml"
+                );
+
+                await rm(reportPath, { force: true });
 
                 const testCode = await runProcess(
                     "ctest",
@@ -184,20 +286,33 @@ export function activate(context: vscode.ExtensionContext): void {
                         "--output-on-failure",
                         "--no-tests=error",
                         "--output-junit",
-                        path.join(buildDirectory, "test-results.xml")
+                        reportPath
                     ],
-                    output
+                    diagnostics
                 );
 
-                output.appendLine(`CTest завершился с кодом: ${testCode}`);
+                try {
+                    const allPassed = await showTestReport(reportPath, output);
+
+                    if (testCode !== 0 && allPassed) {
+                        output.appendLine(
+                            `CTest завершился с кодом ${testCode}. Подробности:`
+                        );
+                        diagnostics.show(true);
+                    }
+                } catch (error) {
+                    diagnostics.show(true);
+                    throw error;
+                }
             } catch (error: unknown) {
                 const message = error instanceof Error
                     ? error.message
                     : String(error);
 
-                output.appendLine(`Ошибка запуска: ${message}`);
+                output.appendLine(`Ошибка: ${message}`);
             } finally {
                 isRunning = false;
+                context.subscriptions.push(diagnostics);
             }
         }
     );
