@@ -3,6 +3,7 @@ import { spawn } from "node:child_process";
 import * as path from "node:path";
 import { readFile, rm } from "node:fs/promises";
 import { XMLParser, XMLValidator } from "fast-xml-parser";
+import { SettingsPanel } from "./settingsPanel.js";
 
 function runProcess(
     executable: string,
@@ -131,6 +132,15 @@ async function showTestReport(
 export function activate(context: vscode.ExtensionContext): void {
     const output = vscode.window.createOutputChannel("C++ Test Runner");
     context.subscriptions.push(output);
+
+    const settingsCommand = vscode.commands.registerCommand(
+        "cppTestRunner.openSettings",
+        () => {
+            SettingsPanel.show();
+        }
+    );
+
+    context.subscriptions.push(settingsCommand);
 
     let isRunning = false;
     const command = vscode.commands.registerCommand(

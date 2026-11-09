@@ -12,6 +12,10 @@
       {
         "command": "cppTestRunner.runTests",
         "title": "C++ Test Runner: Run Tests"
+      },
+      {
+        "command": "cppTestRunner.openSettings",
+        "title": "C++ Test Runner: Open Settings"
       }
     ]
   },
