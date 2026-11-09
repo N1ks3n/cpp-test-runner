@@ -15,6 +15,9 @@
       }
     ]
   },
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "scripts": {
     "build": "tsc",
     "start": "node dist/main.js"
