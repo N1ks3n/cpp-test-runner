@@ -151,3 +151,4 @@ vite.config.ts.timestamp-*
 /examples/simple-tests/build/
 /examples/simple-tests/build-debug/
 test-logs/
+*.vsix
