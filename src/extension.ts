@@ -182,7 +182,9 @@ export function activate(context: vscode.ExtensionContext): void {
                         "--test-dir",
                         buildDirectory,
                         "--output-on-failure",
-                        "--no-tests=error"
+                        "--no-tests=error",
+                        "--output-junit",
+                        path.join(buildDirectory, "test-results.xml")
                     ],
                     output
                 );
