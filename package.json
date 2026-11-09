@@ -17,7 +17,25 @@
         "command": "cppTestRunner.openSettings",
         "title": "C++ Test Runner: Open Settings"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "C++ Test Runner",
+      "properties": {
+        "cppTestRunner.logs.enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Сохранять логи запусков в файлы.",
+          "scope": "resource"
+        },
+        "cppTestRunner.logs.directory": {
+          "type": "string",
+          "default": "",
+          "description": "Папка для логов: абсолютный путь или путь относительно открытого C++ проекта.",
+          "scope": "resource"
+        }
+      }
+    }
+    
   },
   "activationEvents": [
     "onStartupFinished"
