@@ -9,7 +9,7 @@ export function activate(context: vscode.ExtensionContext): void {
     let isRunning = false;
     const command = vscode.commands.registerCommand(
         "cppTestRunner.runTests",
-        () => {
+        async () => {
             if (isRunning) {
                 vscode.window.showInformationMessage("Тесты уже выполняются.");
                 return;
@@ -22,10 +22,49 @@ export function activate(context: vscode.ExtensionContext): void {
                 return;
             }
 
-            const buildDirectory = path.join(
-                workspaceFolder.uri.fsPath,
-                "build"
+            const cacheFiles = await vscode.workspace.findFiles(
+                new vscode.RelativePattern(
+                    workspaceFolder,
+                    "**/CMakeCache.txt"
+                ),
+                "**/{node_modules,.git}/**"
             );
+
+            if (cacheFiles.length === 0) {
+                vscode.window.showErrorMessage(
+                    "Сборки CMake не найдены. Сначала выполни настройку проекта через cmake."
+                );
+                return;
+            }
+
+            const buildDirectories = cacheFiles
+                .map((file) => path.dirname(file.fsPath))
+                .sort();
+
+            let buildDirectory: string;
+
+            if (buildDirectories.length === 1) {
+                buildDirectory = buildDirectories[0]!;
+            } else {
+                const selected = await vscode.window.showQuickPick(
+                    buildDirectories.map((directory) => ({
+                        label: path.relative(
+                            workspaceFolder.uri.fsPath,
+                            directory
+                        ) || ".",
+                        description: directory
+                    })),
+                    {
+                        placeHolder: "Выбери каталог сборки CMake"
+                    }
+                );
+
+                if (!selected) {
+                    return;
+                }
+
+                buildDirectory = selected.description;
+            }
 
             output.clear();
             output.show(true);
