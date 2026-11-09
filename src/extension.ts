@@ -11,4 +11,16 @@ export function activate(context: vscode.ExtensionContext): void {
     );
 
     context.subscriptions.push(command);
+    const runButton = vscode.window.createStatusBarItem(
+        vscode.StatusBarAlignment.Left,
+        100
+    );
+
+    runButton.text = "$(play) C++ Tests";
+    runButton.tooltip = "Запустить C++ тесты";
+    runButton.command = "cppTestRunner.runTests";
+
+    runButton.show();
+
+    context.subscriptions.push(runButton);
 }
