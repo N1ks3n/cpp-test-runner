@@ -2,6 +2,37 @@ import * as vscode from "vscode";
 import { spawn } from "node:child_process";
 import * as path from "node:path";
 
+function runProcess(
+    executable: string,
+    args: string[],
+    output: vscode.OutputChannel
+): Promise<number> {
+    return new Promise((resolve, reject) => {
+        const child = spawn(executable, args);
+
+        child.stdout.on("data", (data: Buffer) => {
+            output.append(data.toString());
+        });
+
+        child.stderr.on("data", (data: Buffer) => {
+            output.append(data.toString());
+        });
+
+        child.on("error", reject);
+
+        child.on("close", (code, signal) => {
+            if (signal) {
+                reject(
+                    new Error(`${executable} завершён сигналом ${signal}`)
+                );
+                return;
+            }
+
+            resolve(code ?? 1);
+        });
+    });
+}
+
 export function activate(context: vscode.ExtensionContext): void {
     const output = vscode.window.createOutputChannel("C++ Test Runner");
     context.subscriptions.push(output);
@@ -31,10 +62,65 @@ export function activate(context: vscode.ExtensionContext): void {
             );
 
             if (cacheFiles.length === 0) {
-                vscode.window.showErrorMessage(
-                    "Сборки CMake не найдены. Сначала выполни настройку проекта через cmake."
+                const sourceDirectory = workspaceFolder.uri.fsPath;
+
+                const cmakeLists = vscode.Uri.joinPath(
+                    workspaceFolder.uri,
+                    "CMakeLists.txt"
                 );
-                return;
+
+                try {
+                    await vscode.workspace.fs.stat(cmakeLists);
+                } catch {
+                    vscode.window.showErrorMessage(
+                        "Открой папку C++ проекта с CMakeLists.txt в корне."
+                    );
+                    return;
+                }
+
+                const newBuildDirectory = path.join(
+                    sourceDirectory,
+                    "build"
+                );
+
+                output.clear();
+                output.show(true);
+                output.appendLine("Настройка новой сборки CMake...");
+
+                isRunning = true;
+
+                try {
+                    const configureCode = await runProcess(
+                        "cmake",
+                        [
+                            "-S", sourceDirectory,
+                            "-B", newBuildDirectory
+                        ],
+                        output
+                    );
+
+                    if (configureCode !== 0) {
+                        output.appendLine(
+                            `Настройка CMake завершилась с кодом ${configureCode}.`
+                        );
+                        return;
+                    }
+
+                    cacheFiles.push(
+                        vscode.Uri.file(
+                            path.join(newBuildDirectory, "CMakeCache.txt")
+                        )
+                    );
+                } catch (error: unknown) {
+                    const message = error instanceof Error
+                        ? error.message
+                        : String(error);
+
+                    output.appendLine(`Ошибка настройки CMake: ${message}`);
+                    return;
+                } finally {
+                    isRunning = false;
+                }
             }
 
             const buildDirectories = cacheFiles
@@ -72,34 +158,45 @@ export function activate(context: vscode.ExtensionContext): void {
 
             isRunning = true;
 
-            const process = spawn("ctest", [
-                "--test-dir",
-                buildDirectory,
-                "--output-on-failure",
-                "--no-tests=error"
-            ]);
+            try {
+                output.appendLine("Сборка проекта...");
 
-            process.stdout.on("data", (data: Buffer) => {
-                output.append(data.toString());
-            });
+                const buildCode = await runProcess(
+                    "cmake",
+                    ["--build", buildDirectory],
+                    output
+                );
 
-            process.stderr.on("data", (data: Buffer) => {
-                output.append(data.toString());
-            });
-
-            process.on("error", (error: Error) => {
-                output.appendLine(`Не удалось запустить CTest: ${error.message}`);
-            });
-
-            process.on("close", (code, signal) => {
-                isRunning = false;
-
-                if (signal) {
-                    output.appendLine(`CTest завершён сигналом: ${signal}`);
-                } else if (code !== null) {
-                    output.appendLine(`CTest завершился с кодом: ${code}`);
+                if (buildCode !== 0) {
+                    output.appendLine(
+                        `Сборка завершилась с кодом ${buildCode}. Тесты не запущены.`
+                    );
+                    return;
                 }
-            });
+
+                output.appendLine("\nЗапуск тестов...");
+
+                const testCode = await runProcess(
+                    "ctest",
+                    [
+                        "--test-dir",
+                        buildDirectory,
+                        "--output-on-failure",
+                        "--no-tests=error"
+                    ],
+                    output
+                );
+
+                output.appendLine(`CTest завершился с кодом: ${testCode}`);
+            } catch (error: unknown) {
+                const message = error instanceof Error
+                    ? error.message
+                    : String(error);
+
+                output.appendLine(`Ошибка запуска: ${message}`);
+            } finally {
+                isRunning = false;
+            }
         }
     );
 
