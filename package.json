@@ -1,0 +1,23 @@
+{
+  "name": "cpp-test-runner",
+  "version": "1.0.0",
+  "description": "Расширение для Visual Studio Code, которое запускает тесты CMake/CTest одной кнопкой.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/N1ks3n/cpp-test-runner.git"
+  },
+  "keywords": [],
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/N1ks3n/cpp-test-runner/issues"
+  },
+  "homepage": "https://github.com/N1ks3n/cpp-test-runner#readme",
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2"
+  }
+}
